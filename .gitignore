@@ -1,2 +1,3 @@
 /sources/__pycache__/*.pyc
 /sources/email/__pycache__/*.pyc
+/messages.jsonl
