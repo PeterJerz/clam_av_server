@@ -1,0 +1,42 @@
+#!/usr/bin/env python3
+import iptc
+import subprocess
+import logging
+from systemd.journal import JournalHandler
+import os
+
+# === Logging einrichten ===
+log = logging.getLogger('unblock_reset_service')
+log.addHandler(JournalHandler())
+log.setLevel(logging.INFO)
+
+def unblock_outgoing_traffic():
+    """Hebt die IPTables-Blockade auf"""
+    try:
+        table = iptc.Table(iptc.Table.FILTER)
+        chain = iptc.Chain(table, "OUTPUT")
+        
+        # Lösche alle DROP-Regeln in OUTPUT
+        for rule in chain.rules:
+            if rule.target.name == "DROP":
+                chain.delete_rule(rule)
+        log.info("Ausgehende Traffic-Blockade aufgehoben")
+    except Exception as e:
+        log.error(f"Fehler beim Aufheben der Blockade: {str(e)}")
+
+def restart_main_service():
+    """Startet den Hauptdienst neu"""
+    try:
+        subprocess.run(["systemctl", "restart", "clamav_inotify.service"], check=True)
+        log.info("Hauptdienst wurde neu gestartet")
+    except subprocess.CalledProcessError as e:
+        log.error(f"Fehler beim Neustart des Hauptdienstes: {str(e)}")
+
+def main():
+    log.info("Starte Aufhebung der Blockade und Neustart")
+    unblock_outgoing_traffic()
+    restart_main_service()
+    log.info("Prozess abgeschlossen")
+
+if __name__ == "__main__":
+    main()

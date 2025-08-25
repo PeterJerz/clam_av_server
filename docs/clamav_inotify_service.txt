@@ -1,0 +1,103 @@
+#!/usr/bin/env python3
+import os
+import sys
+import pyclamd
+import time
+import smtplib
+from email.mime.text import MIMEText
+import iptc
+import logging
+from systemd.journal import JournalHandler
+from exchangelib import Credentials, Account, Message, Mailbox
+
+# === Konfiguration ===
+WATCH_DIR = "/path/to/watch"  # Zu überwachendes Verzeichnis
+EMAIL_RECIPIENT = "admin@example.com"  # Empfänger-Email
+EMAIL_USER = "your_email@exchange.com"  # Exchange Email
+EMAIL_PASSWORD = "your_password"  # Exchange Passwort
+EXCHANGE_SERVER = "outlook.office365.com"  # Exchange Server
+
+# === Logging einrichten ===
+log = logging.getLogger('clamav_inotify_service')
+log.addHandler(JournalHandler())
+log.setLevel(logging.INFO)
+
+def send_email(virus_name, file_path):
+    """Sendet Email über Exchange bei Virenfund"""
+    try:
+        credentials = Credentials(username=EMAIL_USER, password=EMAIL_PASSWORD)
+        account = Account(primary_smtp_address=EMAIL_USER, 
+                         credentials=credentials, 
+                         autodiscover=True,
+                         access_type='delegate')
+        
+        msg = Message(
+            account=account,
+            subject=f"Virus gefunden: {virus_name}",
+            body=f"Datei {file_path} enthält Virus {virus_name}. Ausgehender Verkehr wurde blockiert.",
+            to_recipients=[Mailbox(email_address=EMAIL_RECIPIENT)]
+        )
+        msg.send()
+        log.info(f"Email an {EMAIL_RECIPIENT} gesendet")
+    except Exception as e:
+        log.error(f"Email konnte nicht gesendet werden: {str(e)}")
+
+def block_outgoing_traffic():
+    """Blockiert ausgehenden Traffic mit iptables"""
+    try:
+        chain = iptc.Chain(iptc.Table(iptc.Table.FILTER), "OUTPUT")
+        rule = iptc.Rule()
+        rule.target = iptc.Target(rule, "DROP")
+        chain.insert_rule(rule)
+        log.info("Ausgehender Traffic wurde blockiert")
+    except Exception as e:
+        log.error(f"Fehler beim Blockieren des Traffics: {str(e)}")
+
+def scan_file(file_path):
+    """Scannt eine Datei mit ClamAV"""
+    try:
+        cd = pyclamd.ClamdAgnostic()
+        scan_result = cd.scan_file(file_path)
+        if scan_result is not None:
+            virus_name = scan_result[file_path][1]
+            log.warning(f"Virus gefunden: {virus_name} in {file_path}")
+            
+            # Blockiere Traffic und sende Email
+            block_outgoing_traffic()
+            send_email(virus_name, file_path)
+            
+            # Beende Dienst nach Virenfund
+            sys.exit(1)
+    except Exception as e:
+        log.error(f"Fehler beim Scannen: {str(e)}")
+
+def monitor_directory():
+    """Überwacht Verzeichnis mit inotify"""
+    import inotify.adapters
+    notifier = inotify.adapters.Inotify()
+    notifier.add_watch(WATCH_DIR)
+    
+    log.info(f"Beginne mit der Überwachung von {WATCH_DIR}")
+    
+    for event in notifier.event_gen():
+        if event is not None:
+            (header, type_names, watch_path, filename) = event
+            file_path = os.path.join(watch_path, filename)
+            
+            # Nur auf bestimmte Events reagieren
+            if 'IN_CLOSE_WRITE' in type_names or 'IN_MOVED_TO' in type_names:
+                if os.path.isfile(file_path):
+                    log.info(f"Neue/changed Datei: {file_path}")
+                    scan_file(file_path)
+
+def main():
+    log.info("ClamAV Inotify Service gestartet")
+    try:
+        monitor_directory()
+    except KeyboardInterrupt:
+        log.info("Service wird beendet")
+    except Exception as e:
+        log.error(f"Fehler im Hauptprozess: {str(e)}")
+
+if __name__ == "__main__":
+    main()
