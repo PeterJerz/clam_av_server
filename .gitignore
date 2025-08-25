@@ -2,3 +2,4 @@
 /sources/email/__pycache__/*.pyc
 /messages.jsonl
 /config.json
+/__pycache__/*.pyc
