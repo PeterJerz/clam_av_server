@@ -1,0 +1,40 @@
+%% Mermaid Sequence Diagram
+%% ClamAV Minient → Socket-Server → SQLite-Queue → Mail-Sender
+sequenceDiagram
+    autonumber
+    participant FS as Dateisystem
+    participant Watcher as Watcher<br/>(inotify/FSEvents/WinFS)
+    participant Scanner as ClamAV<br/>Scanner
+    participant Client as Socket Client<br/>(JSON Sender)
+    participant Server as Socket Server<br/>(asyncio)
+    participant DB as SQLite Queue<br/>(messages.sqlite3)
+    participant Mailer as Mail Sender<br/>(queue poller)
+    participant SMTP as SMTP Server
+    participant Inbox as Empfänger-Inbox
+
+    FS->>Watcher: Datei-Event (IN_CLOSE_WRITE / MOVED_TO)
+    Watcher->>Scanner: scan(path)
+    Scanner->>Scanner: Datei prüfen
+
+    alt INFIZIERT
+        Scanner->>Client: JSON {host, path, signature, ts, ...}
+        Client->>Server: TCP verbinden + JSON senden
+        Server->>DB: enqueue(payload, src_ip)
+        Server-->>Client: "OK" (optional)
+
+        loop alle idle Sekunden
+            Mailer->>DB: claim_batch(N, lease)
+            alt keine Nachrichten
+                Mailer-->>Mailer: warten (sleep)
+            else Nachrichten vorhanden
+                Mailer->>Mailer: E-Mail zusammenfassen
+                Mailer->>SMTP: senden (STARTTLS/SSL)
+                SMTP-->>Mailer: 250 OK
+                Mailer->>DB: ack_emailed(ids)
+            end
+        end
+    else CLEAN
+        Scanner-->>Watcher: keine Aktion
+    end
+
+    Note over DB,Mailer: Leases verfallen nach &lt;lease&gt; s; abgebrochene Claims werden freigegeben.

@@ -1,0 +1,52 @@
+@startuml
+title ClamAV Minient → Socket-Server → SQLite-Queue → Mail-Sender (Sequenz)
+
+actor "Dateisystem" as FS
+participant "Watcher\n(inotify/FSEvents/WinFS)" as Watcher
+participant "ClamAV\nScanner" as Scanner
+participant "Socket Client\n(JSON Sender)" as Client
+participant "TCP Network" as Net
+participant "Socket Server\n(asyncio)" as Server
+database "SQLite Queue\n(messages.sqlite3)" as DB
+participant "Mail Sender\n(queue poller)" as Mailer
+participant "SMTP Server" as SMTP
+entity "Empfänger-Inbox" as Inbox
+
+== Dateiänderung & Scan ==
+FS -> Watcher: Datei-Event (z.B. IN_CLOSE_WRITE / MOVED_TO)\nwith path
+Watcher -> Scanner: scan(path)
+Scanner -> Scanner: Datei prüfen (ClamAV)
+
+alt INFIZIERT
+    Scanner -> Client: JSON bauen { host, path, signature, ts, extra }
+    == Socket-Übertragung ==
+    Client -> Net: TCP verbinden (host:port)
+    Net -> Server: Verbindung herstellen
+    Client -> Server: JSON senden (eine Nachricht)
+    Server -> DB: enqueue(payload, src_ip)\nINSERT + WAL
+    Server --> Client: "OK"
+    Client -> Net: Verbindung schließen
+
+    == Mail-Versand über Queue ==
+    loop alle idle Sekunden
+        Mailer -> DB: claim_batch(N, lease)\nUPDATE...SELECT atomar
+        alt Batch leer
+            Mailer --> Mailer: warten (sleep)
+        else Batch gefüllt
+            Mailer -> Mailer: E-Mail zusammenfassen (Betreff+Body)
+            Mailer -> SMTP: senden (STARTTLS/SSL, AUTH)
+            SMTP --> Mailer: 250 OK
+            Mailer -> DB: ack_emailed(ids)\nSET emailed_at, claim_token=NULL
+        end
+    end
+
+else CLEAN
+    Scanner --> Watcher: keine Aktion
+end
+
+== Robustheit ==
+note over DB, Mailer
+Leases verfallen nach <lease> s.\n
+Abgebrochene Claims werden automatisch freigegeben.
+end note
+@enduml

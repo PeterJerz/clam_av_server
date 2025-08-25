@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1420" height="1080">
+<defs>
+<style><![CDATA[text { font-family: Segoe UI, Arial, sans-serif; font-size: 12px; fill: #111; } .small { font-size: 11px; } .title { font-size: 16px; font-weight: 600; } .actor { font-size: 12px; font-weight: 600; } .frame { fill: #f8f9fb; stroke: #b8c0cc; stroke-width: 1; rx:6; } .header { fill: #eef2f7; stroke: #b8c0cc; stroke-width: 1; } .lifeline { stroke: #9aa4b2; stroke-dasharray: 6 6; } .arrow { stroke: #111; marker-end: url(#arrow); } .arrow_rev { stroke: #111; marker-start: url(#arrow); } ]]></style>
+<marker id="arrow" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#111"/></marker>
+</defs>
+<text x="710.0" y="24" text-anchor="middle" class="title">ClamAV → Socket-Server → SQLite-Queue → Mail-Sender (Sequenz)</text>
+<rect x="15.0" y="50" width="130" height="38" rx="8" fill="#e7eef7" stroke="#9fb3c8"/>
+<text x="80" y="67.0" text-anchor="middle" class="actor">Dateisystem</text>
+<line x1="80" y1="94" x2="80" y2="994" class="lifeline"/>
+<rect x="195.0" y="50" width="130" height="38" rx="8" fill="#e7eef7" stroke="#9fb3c8"/>
+<text x="260" y="67.0" text-anchor="middle" class="actor">Watcher</text>
+<line x1="260" y1="94" x2="260" y2="994" class="lifeline"/>
+<rect x="375.0" y="50" width="130" height="38" rx="8" fill="#e7eef7" stroke="#9fb3c8"/>
+<text x="440" y="67.0" text-anchor="middle" class="actor">ClamAV</text>
+<text x="440" y="79.0" text-anchor="middle" class="actor">Scanner</text>
+<line x1="440" y1="94" x2="440" y2="994" class="lifeline"/>
+<rect x="555.0" y="50" width="130" height="38" rx="8" fill="#e7eef7" stroke="#9fb3c8"/>
+<text x="620" y="67.0" text-anchor="middle" class="actor">Socket</text>
+<text x="620" y="79.0" text-anchor="middle" class="actor">Client</text>
+<line x1="620" y1="94" x2="620" y2="994" class="lifeline"/>
+<rect x="735.0" y="50" width="130" height="38" rx="8" fill="#e7eef7" stroke="#9fb3c8"/>
+<text x="800" y="67.0" text-anchor="middle" class="actor">Socket</text>
+<text x="800" y="79.0" text-anchor="middle" class="actor">Server</text>
+<line x1="800" y1="94" x2="800" y2="994" class="lifeline"/>
+<rect x="915.0" y="50" width="130" height="38" rx="8" fill="#e7eef7" stroke="#9fb3c8"/>
+<text x="980" y="67.0" text-anchor="middle" class="actor">SQLite</text>
+<text x="980" y="79.0" text-anchor="middle" class="actor">Queue</text>
+<line x1="980" y1="94" x2="980" y2="994" class="lifeline"/>
+<rect x="1095.0" y="50" width="130" height="38" rx="8" fill="#e7eef7" stroke="#9fb3c8"/>
+<text x="1160" y="67.0" text-anchor="middle" class="actor">Mail</text>
+<text x="1160" y="79.0" text-anchor="middle" class="actor">Sender</text>
+<line x1="1160" y1="94" x2="1160" y2="994" class="lifeline"/>
+<rect x="1275.0" y="50" width="130" height="38" rx="8" fill="#e7eef7" stroke="#9fb3c8"/>
+<text x="1340" y="67.0" text-anchor="middle" class="actor">SMTP</text>
+<text x="1340" y="79.0" text-anchor="middle" class="actor">Server</text>
+<line x1="1340" y1="94" x2="1340" y2="994" class="lifeline"/>
+<line x1="80" y1="152" x2="260" y2="152" class="arrow"/>
+<text x="170.0" y="146" text-anchor="middle" class="small">Datei-Event (IN_CLOSE_WRITE / MOVED_TO)</text>
+<line x1="260" y1="186" x2="440" y2="186" class="arrow"/>
+<text x="350.0" y="180" text-anchor="middle" class="small">scan(path)</text>
+<path d="M 440 210 h 50 v 20 h -50" fill="none" class="arrow"/>
+<text x="465.0" y="204" text-anchor="middle" class="small">Datei prüfen (ClamAV)</text>
+<line x1="440" y1="268" x2="620" y2="268" class="arrow"/>
+<text x="530.0" y="262" text-anchor="middle" class="small">JSON {host, path, signature, ts, ...}</text>
+<line x1="620" y1="302" x2="800" y2="302" class="arrow"/>
+<text x="710.0" y="296" text-anchor="middle" class="small">TCP verbinden + JSON senden</text>
+<line x1="800" y1="336" x2="980" y2="336" class="arrow"/>
+<text x="890.0" y="330" text-anchor="middle" class="small">enqueue(payload, src_ip)</text>
+<line x1="800" y1="360" x2="620" y2="360" class="arrow"/>
+<text x="710.0" y="354" text-anchor="middle" class="small">"OK" (optional)</text>
+<line x1="1160" y1="394" x2="980" y2="394" class="arrow"/>
+<text x="1070.0" y="388" text-anchor="middle" class="small">claim_batch(N, lease)</text>
+<path d="M 1160 418 h 50 v 20 h -50" fill="none" class="arrow"/>
+<text x="1185.0" y="412" text-anchor="middle" class="small">E-Mail zusammenfassen</text>
+<line x1="1160" y1="476" x2="1340" y2="476" class="arrow"/>
+<text x="1250.0" y="470" text-anchor="middle" class="small">senden (STARTTLS/SSL)</text>
+<line x1="1340" y1="500" x2="1160" y2="500" class="arrow"/>
+<text x="1250.0" y="494" text-anchor="middle" class="small">250 OK</text>
+<line x1="1160" y1="524" x2="980" y2="524" class="arrow"/>
+<text x="1070.0" y="518" text-anchor="middle" class="small">ack_emailed(ids)</text>
+<rect x="350" y="250" width="1080" height="290" class="frame"/>
+<rect x="350" y="250" width="80" height="20" class="header"/>
+<text x="356" y="264" class="small">alt</text>
+<text x="440" y="264" class="small">INFIZIERT</text>
+<rect x="1050" y="376" width="400" height="164" class="frame"/>
+<rect x="1050" y="376" width="80" height="20" class="header"/>
+<text x="1056" y="390" class="small">loop</text>
+<text x="1140" y="390" class="small">alle idle Sekunden</text>
+<rect x="80" y="564" width="340" height="36" rx="8" fill="#fff4cc" stroke="#e6c65a"/>
+<text x="90" y="586" class="small">CLEAN: Keine Aktion (Scanner meldet nichts an den Client)</text>
+</svg>
